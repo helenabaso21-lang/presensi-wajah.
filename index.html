@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presensi Online Pengenalan Wajah</title>
+    <!-- Load AI face-api.js dari CDN Gratis -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.node.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #f0f2f5; padding: 20px; }
+        #video-container { position: relative; width: 480px; height: 360px; margin: 20px auto; background: #000; border-radius: 10px; overflow: hidden; }
+        video, canvas { position: absolute; top: 0; left: 0; }
+        #status { font-size: 18px; font-weight: bold; color: #007bff; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <h2>Presensi Online Wajah</h2>
+    <div id="video-container">
+        <video id="webcam" autoplay muted width="480" height="360"></video>
+    </div>
+    <div id="status">Memuat AI...</div>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const statusDiv = document.getElementById('status');
+        
+        // PASTE URL GOOGLE APPS SCRIPT ANDA DI SINI
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwm9di9wPdV9iaPwyM1FnVtpZh0DmOc9fG3-goTLcsan4iQyclXYbRbcdCHaICv7F8g2g/exec"; 
+        
+        let isRecorded = false;
+
+        async function init() {
+            statusDiv.innerText = "Memuat model AI...";
+            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/vladmandic/face-api/model/';
+            await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+            
+            statusDiv.innerText = "Nyalakan Kamera...";
+            navigator.mediaDevices.getUserMedia({ video: {} }).then(stream => {
+                video.srcObject = stream;
+                statusDiv.innerText = "Sistem Siap. Silakan Hadap Kamera.";
+            });
+        }
+
+        video.addEventListener('play', () => {
+            setInterval(async () => {
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
+                if (detections.length > 0 && !isRecorded) {
+                    isRecorded = true;
+                    kirimPresensi("Pengguna Terdeteksi");
+                }
+            }, 1000);
+        });
+
+        function kirimPresensi(nama) {
+            statusDiv.innerText = `Mencatat presensi untuk: ${nama}...`;
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nama: nama })
+            }).then(() => {
+                statusDiv.style.color = "green";
+                statusDiv.innerText = `✅ Presensi Berhasil Tercatat di Google Sheet!`;
+                setTimeout(() => { isRecorded = false; statusDiv.style.color = "#007bff"; }, 5000);
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
